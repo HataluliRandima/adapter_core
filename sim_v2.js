@@ -22,141 +22,158 @@ app.post('/', (req, res) => {
         const soapBody = result['soap:Envelope']['soap:Body'][0];
         const keys = Object.keys(soapBody);
 
-        const lgiData = soapBody['LGI'][0];
-        handleLGI(lgiData, res);
+        // const lgiData = soapBody['LGI'][0];
+        // handleLGI(lgiData, res);
+
+        keys.forEach(key => {
+            switch (key) {
+                case 'LGI':
+                    // Handle LGI operation
+                    const lgiData = soapBody['LGI'][0];
+                    handleLGI(lgiData, res);
+                    break;
+                default:
+                    console.log(`Unknown operation: ${key}`);
+                    console.log('No valid operation key found in the SOAP body');
+                    res.status(400).send('No valid operation key found in the SOAP body');
+                    break;
+            }
+        });
 
     });
 });
+
+
 
 /////// TEST OTHERS THAT CONTAIN SESSIONTOKEN  ////////////////////
 
 app.post('/:sessionToken', (req, res) => {
     const sessionToken1 = req.params.sessionToken;
 
+    ///// For test purpose /////
     console.log(sessionToken1)
     console.log(activeSessions1)
+    ////////////////////////////
 
+    //const redirectURL = `http://localhost:3001/${sessionToken1}`;
 
+    ///sessionData.timestamp = Date.now();
 
-    // Search for sessionToken and get the associated timestamp
-    var timestamp = searchSessionToken(activeSessions1, sessionToken1);
+    // console.log(activeSessions1)
+    // res.set({
+    //   'Content-Type': 'application/xml',
+    //   'Location': redirectURL,
+    //   'Connection': 'Keep-Alive'
+    // });
+    // console.log("The timestamp is not expired.");
+    // return res.status(200).json({ sessionToken1 });
 
-    // Check if the sessionToken exists and get the timestamp
-    if (timestamp !== undefined) {
-        console.log("The sessionToken exists within the JSON and the associated timestamp is:", timestamp);
-    
-        ////////////////////
-        if (isTimestampExpired(timestamp, 60000))
-         {
-            console.log("The timestamp is expired.");
-            //delete activeSessions1[OPNAME];
-            return res.status(401).send('Session has expired Please Log in again');
-           
-        } else {
-                        
-            const redirectURL = `http://localhost:3001/${sessionToken1}`;
-
-            ///sessionData.timestamp = Date.now();
-
-            console.log(activeSessions1)
-            res.set({
-              'Content-Type': 'application/xml',
-              'Location': redirectURL,
-              'Connection': 'Keep-Alive'
-            });
-            console.log("The timestamp is not expired.");
-            return res.status(200).json({ sessionToken1 });
-           
+    xml2js.parseString(req.body, (err, result) => {
+        if (err) {
+            console.error('Error parsing SOAP request:', err);
+            return res.status(400).send('Error parsing SOAP request');
         }
 
-    } else
-     {
-        console.log("The sessionToken does not exist within the JSON.");
-         // Session token not found, send an error response
-         res.status(404).send('Session token not found');
-    }
+
+        // Search for sessionToken and get the associated timestamp
+        var timestamp = searchSessionToken(activeSessions1, sessionToken1);
+
+        // Check if the sessionToken exists and get the timestamp
+        if (timestamp !== undefined && !isTimestampExpired(timestamp, 50000)) {
+
+            console.log("YESYESYESYEYSYESYEYE")
+            console.log("The sessionToken exists within the JSON and the associated timestamp is:", timestamp);
+
+            // Update the timestamp for the session token
+     
+            if (updateTimestampForSessionToken(activeSessions1, sessionToken1)) {
+                console.log("Timestamp updated successfully for sessionToken:", sessionToken1);
+            } else {
+                console.log("Session token not found:", sessionToken1);
+            }
+
+            // Output the updated activeSessions object
+            console.log(activeSessions1);
+
+            const soapBody = result['soap:Envelope']['soap:Body'][0];
+            const keys = Object.keys(soapBody);
+
+            // Check for specific keys in the SOAP body and perform actions accordingly
+            keys.forEach(key => {
+                switch (key) {
+                    case 'LGO':
+                        // Handle LGO operation
+                        const lgoData = soapBody['LGO'][0]; // Extract data for LGO operation
+                        handleLGO(lgoData, res);
+                        break;
+                    case 'LST_SUB':
+                        // Handle LGO operation
+                        const SubData = soapBody['LST_SUB'][0]; // Extract data for LGO operation
+                        handleLST(SubData, res);
+                        break;    
+                    default:
+                        console.log(`Unknown operation: ${key}`);
+                        console.log('No valid operation key found in the SOAP body');
+                        res.status(400).send('No valid operation key found in the SOAP body');
+                        break;
+                }
+            });
 
 
 
 
+        }
+        else {
+            console.log("NONONONONONONONONONOONO")
+            console.log("The sessionToken does not exist within the JSON.");
+            // res.status(404).send('Session token not found');
+            console.log("The timestamp is expired.");
+            // return res.status(401).send('Session has expired Please Log in again');
 
+            res.set({
+                'Content-Type': 'text/xml'
+            });
 
+            const responseFailedXML = `
+        <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            <soap:Body>
+                <LGIResponse>
+                    <Result>
+                        <ResultCode>5004</ResultCode>
+                        <ResultDesc>Session ID invalid or time out</ResultDesc>
+                    </Result>
+                </LGIResponse>
+            </soap:Body>
+        </soap:Envelope>
+    `;
+            res.status(200).send(responseFailedXML);
 
+        }
 
+    });
 
-
-
-
-
-
-
-    
-        // // Check if the LGI key is present in the SOAP body
-        // if (keys.includes('LGI')) {
-        //   console.log(keys)
-        //     const lgiData = soapBody['LGI'][0]; // Extract data for LGI operation
-        //     handleLGI(lgiData, res);
-        //     //return
-        // } 
-        // // Check if the LGO key is present in the SOAP body
-        // else if (keys.includes('LGO')) {
-        //   console.log(keys)
-        //     const lgoData = soapBody['LGO'][0]; // Extract data for LGO operation
-        //     handleLGO(lgoData, res);
-        // } 
-        // else {
-        //     // No valid operation key found in the SOAP body
-        //     console.log('No valid operation key found in the SOAP body');
-        //     res.status(400).send('No valid operation key found in the SOAP body');
-        // }
-
-
-        // Check for specific keys in the SOAP body and perform actions accordingly
-        // keys.forEach(key => {
-        //     switch (key) {
-        //         case 'LGI':
-        //             // Handle LGI operation
-        //             const lgiData = soapBody['LGI'][0];
-        //             handleLGI(lgiData, res);
-        //             break;
-        //         case 'LGO':
-        //             // Handle LGO operation
-        //             const lgoData = soapBody['LGO'][0]; // Extract data for LGO operation
-        //             handleLGO(lgoData, res);
-        //             break;
-        //         default:
-        //             console.log(`Unknown operation: ${key}`);
-        //             console.log('No valid operation key found in the SOAP body');
-        //             res.status(400).send('No valid operation key found in the SOAP body');
-        //             break;
-        //     }
-        // });
-
-//////////////////
-
-    // // Check if the session token exists in the activeSessions1 object
-    // if (activeSessions1.hasOwnProperty(sessionToken)) {
-    //     // Retrieve the session data associated with the session token
-    //     const sessionData = activeSessions1[sessionToken];
-
-    //     // Check if the session data contains a valid timestamp
-    //     if (isSessionExpired(sessionData)) {
-    //         // Session has expired, send an error response
-    //         res.status(401).send('Session has expired');
-    //     } else {
-    //         // Session is valid, handle the request
-    //         res.status(200).send('Session is valid');
-    //     }
-    // } else {
-    //     // Session token not found, send an error response
-    //     res.status(404).send('Session token not found');
-    // }
 
 });
 
 ////////////////////////
 
 ////// Functions /////////
+
+
+// Function to update the timestamp based on the sessionToken
+function updateTimestampForSessionToken(activeSessions, sessionToken) {
+    for (var key in activeSessions) {
+        if (activeSessions[key].sessionToken === sessionToken) {
+            // Update the timestamp
+            activeSessions[key].timestamp = Date.now();
+            return true; // Return true if the update was successful
+        }
+    }
+    return false; // Return false if the sessionToken was not found
+}
+
+
+
 
 function isTimestampExpired(timestamp, expirationThreshold) {
     // Get the current time in milliseconds
@@ -208,7 +225,7 @@ const activeSessions1 = {}; // Store active sessions
 // Function to check if the session is expired
 function isSessionExpired(session) {
     const currentTime = Date.now();
-    return currentTime - session.timestamp > 60000; // 1 minute expiration
+    return currentTime - session.timestamp > 50000; // 50 seconds expiration
 }
 
 // Function to handle LGI operation
@@ -234,8 +251,6 @@ function handleLGI(data, res) {
     // Check if the session for the user exists
     if (activeSessions1[OPNAME]) {
         const sessionData = activeSessions1[OPNAME];
-
-
 
         // Check if the session is expired
         if (!isSessionExpired(sessionData)) {
@@ -300,7 +315,7 @@ function handleLGI(data, res) {
 
 
         res.set({
-            'Content-Type': 'application/xml',
+            'Content-Type': 'text/xml',
             'Location': redirectURL,
             'Connection': 'Keep-Alive'
         });
@@ -347,6 +362,24 @@ function handleLGO(data, res) {
     res.status(200).send(responseXML);
 }
 
+function handleLST(data, res) {
+    const { Username, Password } = data;
+    // Perform LGO operation based on Username and Password
+    // Example:
+    const responseXML = `
+      <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+          <soap:Body>
+              <LST_SUBResponse>
+                  <Result>
+                      <ResultCode>0</ResultCode>
+                      <ResultDesc>LGO Operation is successful</ResultDesc>
+                  </Result>
+              </LST_SUBResponse>
+          </soap:Body>
+      </soap:Envelope>
+  `;
+    res.status(200).send(responseXML);
+}
 
 //////////////////////////////
 
