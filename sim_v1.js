@@ -102,7 +102,7 @@ app.post('/:sessionToken', (req, res) => {
               'Connection': 'Keep-Alive'
             });
             console.log("The timestamp is not expired.");
-            return res.status(200).json({ sessionToken1 });
+            return res.status(200).send({ sessionToken1 });
            
         }
 

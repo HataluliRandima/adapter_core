@@ -267,7 +267,7 @@ function handleLGI(data, res) {
                 'Connection': 'Keep-Alive'
             });
 
-            return res.status(200).json({ sessionToken });
+            return res.status(200).send({ sessionToken });
         } else {
             // Session has expired, remove the user from activeSessions
             delete activeSessions1[OPNAME];
