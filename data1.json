@@ -1,0 +1,19 @@
+{
+    "data_sets": [
+      {
+        "isdn": 27816605547,
+        "imsi": 655730000235665,
+        "card_type": "USIM",
+         "nam": "BOTH",
+         "category": "COMMON"
+      },
+      {
+        "isdn": 27816699695,
+        "imsi": 655730000220683,
+        "card_type": "USIM",
+        "nam": "BOTH",
+         "category": "COMMON"
+      }
+    ]
+  }
+  

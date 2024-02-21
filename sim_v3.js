@@ -368,17 +368,30 @@ function handleLST(data, res) {
   //  const { Username, Password } = data;
      
     // Load the JSON file containing ISDN data
-    const jsonData = JSON.parse(fs.readFileSync('data.json'));
+    const jsonData = JSON.parse(fs.readFileSync('data1.json'));
 
    // Parse the SOAP XML body
     const xmlBody = data;
 
  // Extract ISDN from SOAP XML body
  const isdnRegex = /<ISDN>(.*?)<\/ISDN>/;
+ const detailRegex = /<DETAIL>(.*?)<\/DETAIL>/;
  const match = xmlBody.match(isdnRegex);
+ const detailMatch = xmlBody.match(detailRegex);
 
- if (match) {
+    //  // Extract ISDN and DETAIL from SOAP XML body
+    //  const isdnRegex = /<ISDN>(.*?)<\/ISDN>/;
+
+    //  const isdnMatch = xmlBody.match(isdnRegex);
+  
+ 
+ 
+
+ if (match && detailMatch) {
      const isdn = match[1];
+     const detail = detailMatch[1];
+
+
      if (isdn.length > 15) {
         //{:error, "1033 :: Number threshold exceeded"}     
         console.log("15 digs");
@@ -423,14 +436,73 @@ function handleLST(data, res) {
                 console.log(foundData)
                 console.log(foundData.imsi)
                   // ISDN found, return the data
-                  const relatives = foundData.relatives ? foundData.relatives.join(', '): 'No relatives found';
-                  const responseXML = `<ISDN>${isdn}</ISDN><Relatives>${relatives}</Relatives>`;
-                  res.set('Content-Type', 'text/xml');
-                  res.send(`<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                              <soapenv:Body>
-                                  ${responseXML}
-                              </soapenv:Body>
-                          </soapenv:Envelope>`);
+                  //const relatives = foundData.relatives ? foundData.relatives.join(', '): 'No relatives found';
+
+                  //const responseXML = `<ISDN>${isdn}</ISDN><Relatives>${relatives}</Relatives>`;
+
+            //       const responseXML = `<Group>
+            //       <Group>
+            //           <HLRSN>1</HLRSN>
+            //           <IMSI>${foundData.imsi}</IMSI>
+            //       </Group>
+            //       <Group>
+            //           <ISDN>${isdn}</ISDN>
+            //       </Group>
+            //       <Group>
+            //           <CardType>USIM</CardType>
+            //           <NAM>BOTH</NAM>
+            //           <CATEGORY>COMMON</CATEGORY>
+            //       </Group>
+            //   </Group>`;
+            //       if (detail === 'true') {
+            //         responseXML += `<CardType>${foundData.card_type}</CardType>`;
+            //     }
+
+                let responseXML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <soapenv:Body>
+                    <LST_SUBResponse>
+                     <Result>
+                      <ResultCode>0</ResultCode>
+                      <ResultDesc>SUCCESS0001:Operation is successful</ResultDesc>
+                      <ResultData>
+                       <Group>
+                        <Group>
+                            <HLRSN>1</HLRSN>
+                            <IMSI>${foundData.imsi}</IMSI>
+                        </Group>
+                        <Group>
+                            <ISDN>${isdn}</ISDN>
+                        </Group>`;
+                
+                // Include CardType if Detail is true
+                if (detail === 'true') {
+                    responseXML += `
+                        <Group>
+                            <CardType>${foundData.card_type}</CardType>
+                            <NAM>${foundData.nam}</NAM>
+                            <CATEGORY>${foundData.category}</CATEGORY>
+                        </Group>`;
+                }
+
+                responseXML += `</Group></ResultData></Result></LST_SUBResponse> </soapenv:Body></soapenv:Envelope>`;
+                
+                res.set('Content-Type', 'text/xml');
+                res.status(200).send(responseXML);
+               
+                //   res.set('Content-Type', 'text/xml');
+                //   res.send(`<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                //               <soapenv:Body>
+                //                 <LST_SUBResponse>
+                //                   <Result>
+                //                    <ResultCode>0</ResultCode>
+                //                    <ResultDesc>SUCCESS0001:Operation is successful</ResultDesc>
+                //                    <ResultData>
+                //                    ${responseXML}
+                //                    </ResultData>
+                //                   </Result>
+                //                 </LST_SUBResponse>       
+                //               </soapenv:Body>
+                //           </soapenv:Envelope>`);
               } else {
                   // ISDN not found, return an error
                   console.log("ISDN not found'");

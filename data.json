@@ -1,0 +1,16 @@
+
+{
+    "data_sets": [
+      {
+        "isdn": 1231223,
+        "imsi": 53353,
+        "card_type": "halo"
+      },
+      {
+        "isdn": 9876543,
+        "imsi": 98765,
+        "card_type": "nova"
+      }
+    ]
+  }
+  

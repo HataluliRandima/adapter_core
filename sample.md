@@ -63,3 +63,65 @@
     // }
 
 ```
+
+
+
+
+
+
+{
+    "655730000347030": ["John Doe", "Jane Doe", "Alice Smith"],
+    "123456789": ["Bob Johnson", "Emily Brown"]
+}
+
+
+
+
+/ Extract ISDN from SOAP XML body
+ const isdnRegex = /<ISDN>(.*?)<\/ISDN>/;
+ const match = xmlBody.match(isdnRegex);
+
+ if (match) {
+     const isdn = match[1];
+     if (isdn.length > 15) {
+        //{:error, "1033 :: Number threshold exceeded"}     
+        console.log("15 digs");
+         res.status(400).send('ISDN must be 15  digits long');
+     } else {
+         // Search for ISDN in the JSON data
+         if (jsonData.hasOwnProperty(isdn)) {
+             // ISDN found, return the data
+             console.log("ISDN  found'");
+             const responseXML = `<ISDN>${isdn}</ISDN><Relatives>${jsonData[isdn]}</Relatives>`;
+             res.set('Content-Type', 'text/xml');
+             res.status(200).send(`<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                         <soapenv:Body>
+                             ${responseXML}
+                         </soapenv:Body>
+                     </soapenv:Envelope>`);
+         } else {
+             // ISDN not found, return an error
+             console.log("ISDN not found'");
+
+             const responseXML = `
+             <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                 <soapenv:Body>
+                     <LST_SUBResponse>
+                         <Result>
+                             <ResultCode>3001</ResultCode>
+                             <ResultDesc>ERR3001:Subscriber not defined</ResultDesc>
+                         </Result>
+                     </LST_SUBResponse>
+                 </soapenv:Body>
+             </soapenv:Envelope>
+         `;
+            res.status(200).send(responseXML);
+
+           
+            // res.status(404).send('ISDN not found');
+         }
+     }
+ } else {
+     // ISDN not found in the SOAP XML body
+     res.status(400).send('ISDN parameter not found in request');
+ }
