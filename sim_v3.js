@@ -5,7 +5,7 @@ const http = require('http');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3001;
+const PORT = 3000;
 
 app.use(bodyParser.text({ type: 'text/xml' }));
 
@@ -14,14 +14,17 @@ app.use(bodyParser.text({ type: 'text/xml' }));
 //////////////// E.1 LGI ////////////
 app.post('/', (req, res) => {
 
+    /////
+    console.log(req.body)
     xml2js.parseString(req.body, (err, result) => {
         if (err) {
-            console.error('Error parsing SOAP request:', err);
+            console.log(req.body)
+            console.error('Error parsing SOAP request 1st:', err);
             return res.status(400).send('Error parsing SOAP request');
         }
 
         const soapBody = result['soapenv:Envelope']['soapenv:Body'][0];
-        const keys = Object.keys(soapBody);
+        const keys = Object.keys(soapBody); 
 
         // const lgiData = soapBody['LGI'][0];
         // handleLGI(lgiData, res);
@@ -33,40 +36,39 @@ app.post('/', (req, res) => {
                     const lgiData = soapBody['LGI'][0];
                     handleLGI(lgiData, res);
                     break;
-                    //try to add of when the is no seession token LGO
+                //try to add of when the is no seession token LGO
                 case 'LGO':
-                        // Handle LGI operation
-                     if (req.params.sessionToken == undefined)
-                        {
-                            console.log("The timestamp is expired.");
-                            // return res.status(401).send('Session has expired Please Log in again');
-                            const redirectURL = `http://169.10.20.100:8001/`;
-                            res.set({
-                                'Content-Type': 'text/xml',
-                                'Location': redirectURL,
-                                'Connection': 'Keep-Alive'
-                            });
-                
-                            const responseFailedXML = `
+                    // Handle LGI operation
+                    if (req.params.sessionToken == undefined) {
+                        console.log("The timestamp is expired.");
+                        // return res.status(401).send('Session has expired Please Log in again');
+                        const redirectURL = `http://169.10.20.100:8001/`;
+                        res.set({
+                            'Content-Type': 'text/xml',
+                            'Location': redirectURL,
+                            'Connection': 'Keep-Alive'
+                        });
+
+                        const responseFailedXML = `
                         <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                             <soapenv:Body>
-                                <LGIResponse>
+                                <LGOResponse>
                                     <Result>
                                         <ResultCode>5004</ResultCode>
                                         <ResultDesc>Session ID invalid or time out</ResultDesc>
                                     </Result>
-                                </LGIResponse>
+                                </LGOResponse>
                             </soapenv:Body>
                         </soapenv:Envelope>
                     `;
-                            res.status(307).send(responseFailedXML);
-                       
-                        } 
-                        break;  
-                     
+                        res.status(307).send(responseFailedXML);
+
+                    }
+                    break;
+
 
                 default:
-                    console.log(`Unknown operation: ${key}`);
+                    console.log(`Unknown operation: ${key} from /`);
                     console.log('No valid operation key found in the SOAP body');
                     res.status(400).send('No valid operation key found in the SOAP body');
                     break;
@@ -118,7 +120,7 @@ app.post('/:sessionToken', (req, res) => {
             console.log("The sessionToken exists within the JSON and the associated timestamp is:", timestamp);
 
             // Update the timestamp for the session token
-     
+
             if (updateTimestampForSessionToken(activeSessions1, sessionToken1)) {
                 console.log("Timestamp updated successfully for sessionToken:", sessionToken1);
             } else {
@@ -142,9 +144,9 @@ app.post('/:sessionToken', (req, res) => {
                     case 'LST_SUB':
                         // Handle LGO operation
                         const SubData = soapBody['LST_SUB'][0]; // Extract data for LGO operation
-                       // req.body
+                        // req.body
                         handleLST(req.body, res);
-                        break;    
+                        break;
                     default:
                         console.log(`Unknown operation: ${key}`);
                         console.log('No valid operation key found in the SOAP body');
@@ -158,34 +160,83 @@ app.post('/:sessionToken', (req, res) => {
 
         }
         else {
+
             console.log("NONONONONONONONONONOONO")
             console.log("The sessionToken does not exist within the JSON.");
             // res.status(404).send('Session token not found');
             console.log("The timestamp is expired.");
             // return res.status(401).send('Session has expired Please Log in again');
+            //add this response time of session expired based on a key
 
-           
+
+            const soapBody = result['soapenv:Envelope']['soapenv:Body'][0];
+            const keys = Object.keys(soapBody);
+
             const redirectURL = `http://169.10.20.100:8001/`;
-                            res.set({
-                                'Content-Type': 'text/xml',
-                                'Location': redirectURL,
-                                'Connection': 'Keep-Alive'
-                            });
-                
 
-            const responseFailedXML = `
-        <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-            <soapenv:Body>
-                <LGIResponse>
-                    <Result>
-                        <ResultCode>5004</ResultCode>
-                        <ResultDesc>Session ID invalid or time out</ResultDesc>
-                    </Result>
-                </LGIResponse>
-            </soapenv:Body>
-        </soapenv:Envelope>
-    `;
-            res.status(307).send(responseFailedXML);
+            // Check for specific keys in the SOAP body and perform actions accordingly
+            keys.forEach(key => {
+                switch (key) {
+                    case 'LGO':
+
+                        res.set({
+                            'Content-Type': 'text/xml',
+                            'Location': redirectURL,
+                            'Connection': 'Keep-Alive'
+                        });
+
+
+                        const responseFailedXML1 = `
+    <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+        <soapenv:Body>
+            <LGOResponse>
+                <Result>
+                    <ResultCode>5004</ResultCode>
+                    <ResultDesc>Session ID invalid or time out</ResultDesc>
+                </Result>
+            </LGOResponse>
+        </soapenv:Body>
+    </soapenv:Envelope>
+`;
+                        res.status(307).send(responseFailedXML1);
+
+                        break;
+                    case 'LST_SUB':
+
+                        res.set({
+                            'Content-Type': 'text/xml',
+                            'Location': redirectURL,
+                            'Connection': 'Keep-Alive'
+                        });
+
+
+                        const responseFailedXML2 = `
+    <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+        <soapenv:Body>
+            <LST_SUBResponse>
+                <Result>
+                    <ResultCode>5004</ResultCode>
+                    <ResultDesc>Session ID invalid or time out</ResultDesc>
+                </Result>
+            </LST_SUBResponse>
+        </soapenv:Body>
+    </soapenv:Envelope>
+`;
+                        res.status(307).send(responseFailedXML2);
+
+                        break;
+                    default:
+                        console.log(`Unknown operation: ${key}`);
+                        console.log('No valid operation key found in the SOAP body');
+                        res.status(400).send('No valid operation key found in the SOAP body');
+                        break;
+                }
+            });
+
+
+
+
+
 
         }
 
@@ -286,6 +337,7 @@ function handleLGI(data, res) {
     //     }
     // }
 
+    console.log(OPNAME)
 
     // Check if the session for the user exists
     if (activeSessions1[OPNAME]) {
@@ -324,10 +376,70 @@ function handleLGI(data, res) {
             // Session has expired, remove the user from activeSessions
             // delete activeSessions1[OPNAME];
             // return res.status(401).send('Session has expired Please Log in again');
-
+///
+console.log("New session from LGI")
             delete activeSessions1[OPNAME];
 
-            tempLGI(data);
+            //tempLGI(data);
+
+            // const { OPNAME, PWD } = data;
+            // Auth
+            if (OPNAME[0] === 'udm_username' && PWD[0] === 'udm_password') {
+        
+                udm_username = "udm_username"
+          
+        
+                const timestamp = Date.now();
+                const sessionToken = generateSessionToken();
+                activeSessions1[OPNAME] = { sessionToken, timestamp };
+        
+        
+        
+                // Log the username and its session ID
+                console.log(`Username: ${OPNAME}, Session ID: ${sessionToken}`);
+        
+                const redirectURL = `http://169.10.20.100:8001/${sessionToken}`;
+                // Authentication successful
+                const responseXML = `
+                      <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                          <soapenv:Body>
+                              <LGIResponse>
+                                  <Result>
+                                      <ResultCode>0</ResultCode>
+                                      <ResultDesc>Operation is successful</ResultDesc>
+                                  </Result>
+                              </LGIResponse>
+                          </soapenv:Body>
+                      </soapenv:Envelope>
+                  `;
+        
+        
+                res.set({
+                    'Content-Type': 'text/xml',
+                    'Location': redirectURL,
+                    'Connection': 'Keep-Alive'
+                });
+        
+        
+                return res.status(307).send(responseXML);
+            } else {
+                // Authentication failed
+                const responseFailedXML = `
+                      <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                          <soapenv:Body>
+                              <LGIResponse>
+                                  <Result>
+                                      <ResultCode>1018</ResultCode>
+                                      <ResultDesc>Username/Password doesn't match</ResultDesc>
+                                  </Result>
+                              </LGIResponse>
+                          </soapenv:Body>
+                      </soapenv:Envelope>
+                  `;
+                res.status(200).send(responseFailedXML);
+            }
+
+
 
             //return res.status(401).send('Session has expired Please Log in again');
         }
@@ -416,110 +528,110 @@ function handleLGO(data, res) {
       </soapenv:Envelope>
   `;
 
-  res.set({
-    'Content-Type': 'text/xml',
-    'Location': redirectURL,
-    'Connection': 'Keep-Alive'
-});
+    res.set({
+        'Content-Type': 'text/xml',
+        'Location': redirectURL,
+        'Connection': 'Keep-Alive'
+    });
 
-console.log("Logout kind work")
+    console.log("Logout kind work")
 
     res.status(307).send(responseXML);
 }
 
 function handleLST(data, res) {
-  //  const { Username, Password } = data;
-     
+    //  const { Username, Password } = data;
+
     // Load the JSON file containing ISDN data
     const jsonData = JSON.parse(fs.readFileSync('data1.json'));
 
-   // Parse the SOAP XML body
+    // Parse the SOAP XML body
     const xmlBody = data;
 
- // Extract ISDN from SOAP XML body
- const isdnRegex = /<ISDN>(.*?)<\/ISDN>/;
- const detailRegex = /<DETAIL>(.*?)<\/DETAIL>/;
- const match = xmlBody.match(isdnRegex);
- const detailMatch = xmlBody.match(detailRegex);
+    // Extract ISDN from SOAP XML body
+    const isdnRegex = /<ISDN>(.*?)<\/ISDN>/;
+    const detailRegex = /<DETAIL>(.*?)<\/DETAIL>/;
+    const match = xmlBody.match(isdnRegex);
+    const detailMatch = xmlBody.match(detailRegex);
 
     //  // Extract ISDN and DETAIL from SOAP XML body
     //  const isdnRegex = /<ISDN>(.*?)<\/ISDN>/;
 
     //  const isdnMatch = xmlBody.match(isdnRegex);
-  
- 
- 
-
- if (match && detailMatch) {
-     const isdn = match[1];
-     const detail = detailMatch[1];
 
 
-     if (isdn.length > 15) {
-        //{:error, "1033 :: Number threshold exceeded"}     
-        console.log("15 digs");
-         res.status(400).send('ISDN must be 15  digits long');
-     } else {
-         // Search for ISDN in the JSON data
-        //  if (jsonData.hasOwnProperty(isdn)) {
-        //      // ISDN found, return the data
-        //      console.log("ISDN  found'");
-        //      const responseXML = `<ISDN>${isdn}</ISDN><Relatives>${jsonData[isdn]}</Relatives>`;
-        //      res.set('Content-Type', 'text/xml');
-        //      res.status(200).send(`<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        //                  <soapenv:Body>
-        //                      ${responseXML}
-        //                  </soapenv:Body>
-        //              </soapenv:Envelope>`);
-        //  } else {
-        //      // ISDN not found, return an error
-        //      console.log("ISDN not found'");
 
-        //      const responseXML = `
-        //      <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-        //          <soapenv:Body>
-        //              <LST_SUBResponse>
-        //                  <Result>
-        //                      <ResultCode>3001</ResultCode>
-        //                      <ResultDesc>ERR3001:Subscriber not defined</ResultDesc>
-        //                  </Result>
-        //              </LST_SUBResponse>
-        //          </soapenv:Body>
-        //      </soapenv:Envelope>
-        //  `;
-        //     res.status(200).send(responseXML);
 
-           
-         
-        //  }
+    if (match && detailMatch) {
+        const isdn = match[1];
+        const detail = detailMatch[1];
 
-              // Search for ISDN in the JSON data
-              const foundData = jsonData.data_sets.find(data => data.isdn === parseInt(isdn));
-              if (foundData) {
+
+        if (isdn.length > 15) {
+            //{:error, "1033 :: Number threshold exceeded"}     
+            console.log("15 digs");
+            res.status(400).send('ISDN must be 15  digits long');
+        } else {
+            // Search for ISDN in the JSON data
+            //  if (jsonData.hasOwnProperty(isdn)) {
+            //      // ISDN found, return the data
+            //      console.log("ISDN  found'");
+            //      const responseXML = `<ISDN>${isdn}</ISDN><Relatives>${jsonData[isdn]}</Relatives>`;
+            //      res.set('Content-Type', 'text/xml');
+            //      res.status(200).send(`<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            //                  <soapenv:Body>
+            //                      ${responseXML}
+            //                  </soapenv:Body>
+            //              </soapenv:Envelope>`);
+            //  } else {
+            //      // ISDN not found, return an error
+            //      console.log("ISDN not found'");
+
+            //      const responseXML = `
+            //      <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+            //          <soapenv:Body>
+            //              <LST_SUBResponse>
+            //                  <Result>
+            //                      <ResultCode>3001</ResultCode>
+            //                      <ResultDesc>ERR3001:Subscriber not defined</ResultDesc>
+            //                  </Result>
+            //              </LST_SUBResponse>
+            //          </soapenv:Body>
+            //      </soapenv:Envelope>
+            //  `;
+            //     res.status(200).send(responseXML);
+
+
+
+            //  }
+
+            // Search for ISDN in the JSON data
+            const foundData = jsonData.data_sets.find(data => data.isdn === parseInt(isdn));
+            if (foundData) {
                 console.log(foundData)
                 console.log(foundData.imsi)
-                  // ISDN found, return the data
-                  //const relatives = foundData.relatives ? foundData.relatives.join(', '): 'No relatives found';
+                // ISDN found, return the data
+                //const relatives = foundData.relatives ? foundData.relatives.join(', '): 'No relatives found';
 
-                  //const responseXML = `<ISDN>${isdn}</ISDN><Relatives>${relatives}</Relatives>`;
+                //const responseXML = `<ISDN>${isdn}</ISDN><Relatives>${relatives}</Relatives>`;
 
-            //       const responseXML = `<Group>
-            //       <Group>
-            //           <HLRSN>1</HLRSN>
-            //           <IMSI>${foundData.imsi}</IMSI>
-            //       </Group>
-            //       <Group>
-            //           <ISDN>${isdn}</ISDN>
-            //       </Group>
-            //       <Group>
-            //           <CardType>USIM</CardType>
-            //           <NAM>BOTH</NAM>
-            //           <CATEGORY>COMMON</CATEGORY>
-            //       </Group>
-            //   </Group>`;
-            //       if (detail === 'true') {
-            //         responseXML += `<CardType>${foundData.card_type}</CardType>`;
-            //     }
+                //       const responseXML = `<Group>
+                //       <Group>
+                //           <HLRSN>1</HLRSN>
+                //           <IMSI>${foundData.imsi}</IMSI>
+                //       </Group>
+                //       <Group>
+                //           <ISDN>${isdn}</ISDN>
+                //       </Group>
+                //       <Group>
+                //           <CardType>USIM</CardType>
+                //           <NAM>BOTH</NAM>
+                //           <CATEGORY>COMMON</CATEGORY>
+                //       </Group>
+                //   </Group>`;
+                //       if (detail === 'true') {
+                //         responseXML += `<CardType>${foundData.card_type}</CardType>`;
+                //     }
 
                 let responseXML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                     <soapenv:Body>
@@ -536,7 +648,7 @@ function handleLST(data, res) {
                         <Group>
                             <ISDN>${isdn}</ISDN>
                         </Group>`;
-                
+
                 // Include CardType if Detail is true
                 if (detail === 'true') {
                     responseXML += `
@@ -548,10 +660,10 @@ function handleLST(data, res) {
                 }
 
                 responseXML += `</Group></ResultData></Result></LST_SUBResponse> </soapenv:Body></soapenv:Envelope>`;
-                
+
                 res.set('Content-Type', 'text/xml');
                 res.status(200).send(responseXML);
-               
+
                 //   res.set('Content-Type', 'text/xml');
                 //   res.send(`<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
                 //               <soapenv:Body>
@@ -566,11 +678,11 @@ function handleLST(data, res) {
                 //                 </LST_SUBResponse>       
                 //               </soapenv:Body>
                 //           </soapenv:Envelope>`);
-              } else {
-                  // ISDN not found, return an error
-                  console.log("ISDN not found'");
+            } else {
+                // ISDN not found, return an error
+                console.log("ISDN not found'");
 
-             const responseXML = `
+                const responseXML = `
              <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                  <soapenv:Body>
                      <LST_SUBResponse>
@@ -582,63 +694,56 @@ function handleLST(data, res) {
                  </soapenv:Body>
              </soapenv:Envelope>
          `;
-            res.status(200).send(responseXML);;
-              }
-          
-     }
- } else {
-     // ISDN not found in the SOAP XML body
-     res.status(400).send('ISDN parameter not found in request');
- }
+                res.status(200).send(responseXML);;
+            }
+
+        }
+    } else {
+        // ISDN not found in the SOAP XML body
+        res.status(400).send('ISDN parameter not found in request');
+    }
 
 
 
-//     const responseXML = `
-//       <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-//           <soapenv:Body>
-//               <LST_SUBResponse>
-//                   <Result>
-//                       <ResultCode>0</ResultCode>
-//                       <ResultDesc>LGO Operation is successful</ResultDesc>
-//                   </Result>
-//               </LST_SUBResponse>
-//           </soapenv:Body>
-//       </soapenv:Envelope>
-//   `;
-//     res.status(200).send(responseXML);
+    //     const responseXML = `
+    //       <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+    //           <soapenv:Body>
+    //               <LST_SUBResponse>
+    //                   <Result>
+    //                       <ResultCode>0</ResultCode>
+    //                       <ResultDesc>LGO Operation is successful</ResultDesc>
+    //                   </Result>
+    //               </LST_SUBResponse>
+    //           </soapenv:Body>
+    //       </soapenv:Envelope>
+    //   `;
+    //     res.status(200).send(responseXML);
 }
 
 //////////////////////////////
 
 
 ////////////////LGI functio temporary when there is session expired when try to login 
-function tempLGI(data){
+function tempLGI(data) {
     const { OPNAME, PWD } = data;
-        // Auth
-        if (OPNAME[0] === 'udm_username' && PWD[0] === 'udm_password') {
+    // Auth
+    if (OPNAME[0] === 'udm_username' && PWD[0] === 'udm_password') {
 
-            udm_username = "udm_username"
-            // const timestamp = Date.now();
-            // const sessionToken = generateSessionToken();
-    
-            ///////////////
-            // const timestamp = formatDate(Date.now());
-            // const sessionToken = generateSessionToken();
-            // activeSessions.set(sessionToken, {udm_username, timestamp});
-            // console.log(activeSessions) 
-    
-            const timestamp = Date.now();
-            const sessionToken = generateSessionToken();
-            activeSessions1[OPNAME] = { sessionToken, timestamp };
-    
-    
-    
-            // Log the username and its session ID
-            console.log(`Username: ${OPNAME}, Session ID: ${sessionToken}`);
-    
-            const redirectURL = `http://169.10.20.100:8001/${sessionToken}`;
-            // Authentication successful
-            const responseXML = `
+        udm_username = "udm_username"
+  
+
+        const timestamp = Date.now();
+        const sessionToken = generateSessionToken();
+        activeSessions1[OPNAME] = { sessionToken, timestamp };
+
+
+
+        // Log the username and its session ID
+        console.log(`Username: ${OPNAME}, Session ID: ${sessionToken}`);
+
+        const redirectURL = `http://169.10.20.100:8001/${sessionToken}`;
+        // Authentication successful
+        const responseXML = `
               <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                   <soapenv:Body>
                       <LGIResponse>
@@ -650,19 +755,19 @@ function tempLGI(data){
                   </soapenv:Body>
               </soapenv:Envelope>
           `;
-    
-    
-            res.set({
-                'Content-Type': 'text/xml',
-                'Location': redirectURL,
-                'Connection': 'Keep-Alive'
-            });
-    
-    
-            return res.status(307).send(responseXML);
-        } else {
-            // Authentication failed
-            const responseFailedXML = `
+
+
+        res.set({
+            'Content-Type': 'text/xml',
+            'Location': redirectURL,
+            'Connection': 'Keep-Alive'
+        });
+
+
+        return res.status(307).send(responseXML);
+    } else {
+        // Authentication failed
+        const responseFailedXML = `
               <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                   <soapenv:Body>
                       <LGIResponse>
@@ -674,13 +779,13 @@ function tempLGI(data){
                   </soapenv:Body>
               </soapenv:Envelope>
           `;
-            res.status(200).send(responseFailedXML);
-        }
+        res.status(200).send(responseFailedXML);
+    }
 }
 
 
 const httpServer = http.createServer(app);
-//httpServer.keepAliveTimeout = 670000;
+httpServer.keepAliveTimeout = 670000;
 httpServer.listen(PORT, () => {
     console.log(`HTTP Server simulator is running on http://localhost:${PORT}`);
 });
