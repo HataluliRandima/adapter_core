@@ -554,6 +554,12 @@ function handleLST(data, res) {
     const match = xmlBody.match(isdnRegex);
     const detailMatch = xmlBody.match(detailRegex);
 
+
+    const imsiRegex = /<IMSI>(.*?)<\/IMSI>/;
+    const detailimsiRegex = /<DETAIL>(.*?)<\/DETAIL>/;
+    const match1 = xmlBody.match(imsiRegex);
+    const detailMatch1 = xmlBody.match(detailimsiRegex);
+
     //  // Extract ISDN and DETAIL from SOAP XML body
     //  const isdnRegex = /<ISDN>(.*?)<\/ISDN>/;
 
@@ -633,33 +639,14 @@ function handleLST(data, res) {
                 //         responseXML += `<CardType>${foundData.card_type}</CardType>`;
                 //     }
 
-                let responseXML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-                    <soapenv:Body>
-                    <LST_SUBResponse>
-                     <Result>
-                      <ResultCode>0</ResultCode>
-                      <ResultDesc>SUCCESS0001:Operation is successful</ResultDesc>
-                      <ResultData>
-                       <Group>
-                        <Group>
-                            <HLRSN>1</HLRSN>
-                            <IMSI>${foundData.imsi}</IMSI>
-                        </Group>
-                        <Group>
-                            <ISDN>${isdn}</ISDN>
-                        </Group>`;
+                let responseXML = "<?xml version='1.0' ?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"><soapenv:Body><LST_SUBResponse> <Result><ResultCode>0</ResultCode><ResultDesc>SUCCESS0001:Operation is successful</ResultDesc><ResultData><Group><Group><HLRSN>1</HLRSN><IMSI>${foundData.imsi}</IMSI></Group>Group><ISDN>${isdn}</ISDN></Group>";
 
                 // Include CardType if Detail is true
-                if (detail === 'true') {
-                    responseXML += `
-                        <Group>
-                            <CardType>${foundData.card_type}</CardType>
-                            <NAM>${foundData.nam}</NAM>
-                            <CATEGORY>${foundData.category}</CATEGORY>
-                        </Group>`;
+                if (detail === 'TRUE') {
+                    responseXML += "<Group><CardType>${foundData.card_type}</CardType><NAM>${foundData.nam}</NAM><CATEGORY>${foundData.category}</CATEGORY></Group>";
                 }
 
-                responseXML += `</Group></ResultData></Result></LST_SUBResponse> </soapenv:Body></soapenv:Envelope>`;
+                responseXML += "</Group></ResultData></Result></LST_SUBResponse> </SOAP-ENV:Body></SOAP-ENV:Envelope>";
 
                 res.set('Content-Type', 'text/xml');
                 res.status(200).send(responseXML);
@@ -682,7 +669,8 @@ function handleLST(data, res) {
                 // ISDN not found, return an error
                 console.log("ISDN not found'");
 
-                const responseXML = `
+                const responseXML = "<?xml version='1.0' ?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"><SOAP-ENV:Body><LST_SUBResponse><Result><ResultCode>3001</ResultCode><ResultDesc>ERR3001:Subscriber not defined</ResultDesc></Result></LST_SUBResponse></SOAP-ENV:Body></SOAP-ENV:Envelope>"
+                const responseXML1 = `
              <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
                  <soapenv:Body>
                      <LST_SUBResponse>
@@ -698,9 +686,55 @@ function handleLST(data, res) {
             }
 
         }
-    } else {
+        
+    } else if (match1 && detailMatch1) 
+    {
+        const imsi = match1[1];
+        const detail1 = detailMatch1[1];
+
+          // Search for ISDN in the JSON data
+          const foundData = jsonData.data_sets.find(data => data.imsi === parseInt(imsi));
+          if (foundData) {
+              console.log(foundData)
+              console.log(foundData.imsi)
+              
+
+              let responseXML = "<?xml version='1.0' ?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"><SOAP-ENV:Body><LST_SUBResponse><Result><ResultCode>0</ResultCode><ResultDesc>SUCCESS0001:Operation is successful</ResultDesc><ResultData><Group><Group><HLRSN>1</HLRSN><IMSI>" + imsi + "</IMSI></Group><Group><ISDN>" + foundData.isdn + "</ISDN></Group>";
+
+              // Include CardType if Detail is true
+              if (detail1 === 'TRUE') {
+                  responseXML += "<Group><CardType>" + foundData.card_type + "</CardType><NAM>" + foundData.nam + "</NAM><CATEGORY>" + foundData.category + "</CATEGORY></Group>";
+              }
+
+              responseXML += "</Group></ResultData></Result></LST_SUBResponse></SOAP-ENV:Body></SOAP-ENV:Envelope";
+
+              res.set('Content-Type', 'text/xml');
+              res.status(200).send(responseXML);
+
+             
+          } else {
+              // ISDN not found, return an error
+              console.log("IMSI not found'");
+              const responseXML = "<?xml version='1.0' ?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"><SOAP-ENV:Body><LST_SUBResponse><Result><ResultCode>3001</ResultCode><ResultDesc>ERR3001:Subscriber not defined</ResultDesc></Result></LST_SUBResponse></SOAP-ENV:Body></SOAP-ENV:Envelope>"
+              const responseXML1 = `
+           <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+               <soapenv:Body>
+                   <LST_SUBResponse>
+                       <Result>
+                           <ResultCode>3001</ResultCode>
+                           <ResultDesc>ERR3001:Subscriber not defined</ResultDesc>
+                       </Result>
+                   </LST_SUBResponse>
+               </soapenv:Body>
+           </soapenv:Envelope>
+       `;
+              res.status(200).send(responseXML);;
+          }
+
+       
+      } else {
         // ISDN not found in the SOAP XML body
-        res.status(400).send('ISDN parameter not found in request');
+        res.status(400).send('ISDN & IMSI parameter not found in request');
     }
 
 
