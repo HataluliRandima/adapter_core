@@ -5,7 +5,7 @@ const http = require('http');
 const fs = require('fs');
 
 const app = express();
-const PORT = 3000;
+const PORT = 8002;
 
 app.use(bodyParser.text({ type: 'text/xml' }));
 
@@ -42,7 +42,7 @@ app.post('/', (req, res) => {
                     if (req.params.sessionToken == undefined) {
                         console.log("The timestamp is expired.");
                         // return res.status(401).send('Session has expired Please Log in again');
-                        const redirectURL = `http://169.10.20.100:8001/`;
+                        const redirectURL = `http://169.10.20.100:8002/`;
                         res.set({
                             'Content-Type': 'text/xml',
                             'Location': redirectURL,
@@ -172,7 +172,7 @@ app.post('/:sessionToken', (req, res) => {
             const soapBody = result['soapenv:Envelope']['soapenv:Body'][0];
             const keys = Object.keys(soapBody);
 
-            const redirectURL = `http://169.10.20.100:8001/`;
+            const redirectURL = `http://169.10.20.100:8002/`;
 
             // Check for specific keys in the SOAP body and perform actions accordingly
             keys.forEach(key => {
@@ -348,7 +348,7 @@ function handleLGI(data, res) {
             // Session is not expired, update timestamp
             sessionData.timestamp = Date.now();
             const sessionToken = sessionData.sessionToken;
-            const redirectURL = `http://169.10.20.100:8001/${sessionToken}`;
+            const redirectURL = `http://169.10.20.100:80012${sessionToken}`;
 
 
             console.log(activeSessions1)
@@ -398,7 +398,7 @@ console.log("New session from LGI")
                 // Log the username and its session ID
                 console.log(`Username: ${OPNAME}, Session ID: ${sessionToken}`);
         
-                const redirectURL = `http://169.10.20.100:8001/${sessionToken}`;
+                const redirectURL = `http://169.10.20.100:8002/${sessionToken}`;
                 // Authentication successful
                 const responseXML = `
                       <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
