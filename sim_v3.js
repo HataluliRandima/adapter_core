@@ -21,8 +21,10 @@ app.post('/', (req, res) => {
     //const clientIP = req.connection.remoteAddress; ; // Get client's IP address
 
     // Now you can use clientIP as needed
-    console.log(`SOAP request received from IP: ${clientIP}`);
-
+    //console.log(`SOAP request received from IP: ${clientIP}`);
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const deviceIP = forwardedFor ? forwardedFor.split(',')[0] : req.connection.remoteAddress;
+    console.log(`Device IP address: ${deviceIP}`);
     xml2js.parseString(req.body, (err, result) => {
         if (err) {
             console.error('Error parsing SOAP request 1st:', err);
