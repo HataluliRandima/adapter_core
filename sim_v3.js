@@ -7,18 +7,17 @@ const fs = require('fs');
 const app = express();
 const PORT = 8002;
 
-app.use(bodyParser.text({ type: 'text/xml' }));
+app.use(bodyParser.text({ type: 'application/xml' }));
+//app.use(bodyParser.text({ type: 'text/xml' }));
 
 /////// Endpoints //////
 
 //////////////// E.1 LGI ////////////
 app.post('/', (req, res) => {
 
-    /////
-    console.log(req.body)
+
     xml2js.parseString(req.body, (err, result) => {
         if (err) {
-            console.log(req.body)
             console.error('Error parsing SOAP request 1st:', err);
             return res.status(400).send('Error parsing SOAP request');
         }
@@ -26,20 +25,20 @@ app.post('/', (req, res) => {
         const soapBody = result['soapenv:Envelope']['soapenv:Body'][0];
         const keys = Object.keys(soapBody); 
 
-        // const lgiData = soapBody['LGI'][0];
-        // handleLGI(lgiData, res);
-
-        keys.forEach(key => {
-            switch (key) {
+        keys.forEach(key => 
+            {
+            switch (key) 
+            {
                 case 'LGI':
                     // Handle LGI operation
                     const lgiData = soapBody['LGI'][0];
                     handleLGI(lgiData, res);
                     break;
-                //try to add of when the is no seession token LGO
+                
                 case 'LGO':
                     // Handle LGI operation
-                    if (req.params.sessionToken == undefined) {
+                    if (req.params.sessionToken == undefined) 
+                    {
                         console.log("The timestamp is expired.");
                         // return res.status(401).send('Session has expired Please Log in again');
                         const redirectURL = `http://169.10.20.100:8002/`;
@@ -321,222 +320,56 @@ function isSessionExpired(session) {
 // Function to handle LGI operation
 function handleLGI(data, res) {
     const { OPNAME, PWD } = data;
+    const udmUsername = "udm_username";
+    const udmPassword = "udm_password";
 
-    // Perform LGI operation based on OPNAME and PWD
-    // Check if the session for the user exists
-    //    if (activeSessions1[OPNAME]) {
-    //     if (!isSessionExpired(activeSessions1[OPNAME])) {
-    //         // Session is not expired, return the session token
-    //         const sessionToken = activeSessions1[OPNAME].sessionToken;
-    //         return res.status(200).json({ sessionToken });
-    //     } else {
-    //       console.log(activeSessions1)
-    //         // Session has expired, remove the user from activeSessions
-    //         delete activeSessions1[OPNAME];
-    //         return res.status(401).send('Session has expired  Please Log in again');
-    //     }
-    // }
+    //console.log(OPNAME[0])
+    if (OPNAME[0] === udmUsername && PWD[0] === udmPassword) 
+    {
+      const timestamp = formatDate(Date.now());
+      const sessionToken = generateSessionToken();
+      activeSessions.set(sessionToken, {udmUsername, timestamp});
+      console.log(activeSessions) 
 
-    console.log(OPNAME)
-
-    // Check if the session for the user exists
-    if (activeSessions1[OPNAME]) {
-        const sessionData = activeSessions1[OPNAME];
-
-        // Check if the session is expired
-        if (!isSessionExpired(sessionData)) {
-            // Session is not expired, update timestamp
-            sessionData.timestamp = Date.now();
-            const sessionToken = sessionData.sessionToken;
-            const redirectURL = `http://169.10.20.100:80012${sessionToken}`;
-
-
-            console.log(activeSessions1)
-            res.set({
-                'Content-Type': 'application/xml',
-                'Location': redirectURL,
-                'Connection': 'Keep-Alive'
-            });
-
-            const responseXML = `
-            <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-                <soapenv:Body>
-                    <LGIResponse>
-                        <Result>
-                            <ResultCode>0</ResultCode>
-                            <ResultDesc>Operation is successful</ResultDesc>
-                        </Result>
-                    </LGIResponse>
-                </soapenv:Body>
-            </soapenv:Envelope>
-        `;
-
-            return res.status(307).send(responseXML);
-        } else {
-            // Session has expired, remove the user from activeSessions
-            // delete activeSessions1[OPNAME];
-            // return res.status(401).send('Session has expired Please Log in again');
-///
-console.log("New session from LGI")
-            delete activeSessions1[OPNAME];
-
-            //tempLGI(data);
-
-            // const { OPNAME, PWD } = data;
-            // Auth
-            if (OPNAME[0] === 'udm_username' && PWD[0] === 'udm_password') {
-        
-                udm_username = "udm_username"
-          
-        
-                const timestamp = Date.now();
-                const sessionToken = generateSessionToken();
-                activeSessions1[OPNAME] = { sessionToken, timestamp };
-        
-        
-        
-                // Log the username and its session ID
-                console.log(`Username: ${OPNAME}, Session ID: ${sessionToken}`);
-        
-                const redirectURL = `http://169.10.20.100:8002/${sessionToken}`;
-                // Authentication successful
-                const responseXML = `
-                      <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-                          <soapenv:Body>
-                              <LGIResponse>
-                                  <Result>
-                                      <ResultCode>0</ResultCode>
-                                      <ResultDesc>Operation is successful</ResultDesc>
-                                  </Result>
-                              </LGIResponse>
-                          </soapenv:Body>
-                      </soapenv:Envelope>
-                  `;
-        
-        
-                res.set({
-                    'Content-Type': 'text/xml',
-                    'Location': redirectURL,
-                    'Connection': 'Keep-Alive'
-                });
-        
-        
-                return res.status(307).send(responseXML);
-            } else {
-                // Authentication failed
-                const responseFailedXML = `
-                      <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-                          <soapenv:Body>
-                              <LGIResponse>
-                                  <Result>
-                                      <ResultCode>1018</ResultCode>
-                                      <ResultDesc>Username/Password doesn't match</ResultDesc>
-                                  </Result>
-                              </LGIResponse>
-                          </soapenv:Body>
-                      </soapenv:Envelope>
-                  `;
-                res.status(200).send(responseFailedXML);
-            }
-
-
-
-            //return res.status(401).send('Session has expired Please Log in again');
-        }
-    }
-
-
-    // Auth
-    if (OPNAME[0] === 'udm_username' && PWD[0] === 'udm_password') {
-
-        udm_username = "udm_username"
-        // const timestamp = Date.now();
-        // const sessionToken = generateSessionToken();
-
-        ///////////////
-        // const timestamp = formatDate(Date.now());
-        // const sessionToken = generateSessionToken();
-        // activeSessions.set(sessionToken, {udm_username, timestamp});
-        // console.log(activeSessions) 
-
-        const timestamp = Date.now();
-        const sessionToken = generateSessionToken();
-        activeSessions1[OPNAME] = { sessionToken, timestamp };
-
-
-
-        // Log the username and its session ID
-        console.log(`Username: ${OPNAME}, Session ID: ${sessionToken}`);
-
-        const redirectURL = `http://169.10.20.100:8001/${sessionToken}`;
-        // Authentication successful
-        const responseXML = `
-          <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-              <soapenv:Body>
-                  <LGIResponse>
-                      <Result>
-                          <ResultCode>0</ResultCode>
-                          <ResultDesc>Operation is successful</ResultDesc>
-                      </Result>
-                  </LGIResponse>
-              </soapenv:Body>
-          </soapenv:Envelope>
+      const redirectURL = `http://localhost:3001/${sessionToken}`;
+      const responseXML = `
+        <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+          <soap:Body>
+            <LGIResponse>
+              <Result>
+                <ResultCode>0</ResultCode>
+                <ResultDesc>Operation is successful</ResultDesc>
+              </Result>
+            </LGIResponse>
+          </soap:Body>
+        </soap:Envelope>
       `;
 
-
-        res.set({
-            'Content-Type': 'text/xml',
-            'Location': redirectURL,
-            'Connection': 'Keep-Alive'
-        });
-
-
-        return res.status(307).send(responseXML);
-    } else {
-        // Authentication failed
-        const responseFailedXML = `
-          <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-              <soapenv:Body>
-                  <LGIResponse>
-                      <Result>
-                          <ResultCode>1018</ResultCode>
-                          <ResultDesc>Username/Password doesn't match</ResultDesc>
-                      </Result>
-                  </LGIResponse>
-              </soapenv:Body>
-          </soapenv:Envelope>
-      `;
-        res.status(200).send(responseFailedXML);
-    }
-}
-
-// Function to handle LGO operation
-function handleLGO(data, res) {
-    //   const { Username, Password } = data;
-    const redirectURL = `http://169.10.20.100:8001/`;
-
-    const responseXML = `
-      <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-          <soapenv:Body>
-              <LGOResponse>
-                  <Result>
-                      <ResultCode>0</ResultCode>
-                      <ResultDesc>Operation is successful</ResultDesc>
-                  </Result>
-              </LGOResponse>
-          </soapenv:Body>
-      </soapenv:Envelope>
-  `;
-
-    res.set({
-        'Content-Type': 'text/xml',
+      res.set({
+        'Content-Type': 'application/xml',
         'Location': redirectURL,
         'Connection': 'Keep-Alive'
-    });
-
-    console.log("Logout kind work")
-
-    res.status(307).send(responseXML);
+      });
+      //res.status(307).contentType('application/xml').send(responseXML);
+      res.status(200).contentType('application/xml').send(responseXML);
+    } 
+    else 
+    {
+      console.log("username and pass don't match");
+      const responseFailedXML = `
+        <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+          <soap:Body>
+            <LGIResponse>
+              <Result>
+                <ResultCode>1018</ResultCode>
+                <ResultDesc>Username/Password doesn't match</ResultDesc>
+              </Result>
+            </LGIResponse>
+          </soap:Body>
+        </soap:Envelope>
+      `;
+      res.status(200).send(responseFailedXML);
+    }
 }
 
 function handleLST(data, res) {
