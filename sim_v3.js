@@ -16,6 +16,13 @@ app.use(bodyParser.text({ type: 'application/xml' }));
 app.post('/', (req, res) => {
 
 
+
+    const clientIP = req.socket.remoteAddress;
+    //const clientIP = req.connection.remoteAddress; ; // Get client's IP address
+
+    // Now you can use clientIP as needed
+    console.log(`SOAP request received from IP: ${clientIP}`);
+
     xml2js.parseString(req.body, (err, result) => {
         if (err) {
             console.error('Error parsing SOAP request 1st:', err);
@@ -654,5 +661,5 @@ function tempLGI(data) {
 const httpServer = http.createServer(app);
 httpServer.keepAliveTimeout = 670000;
 httpServer.listen(PORT, () => {
-    console.log(`HTTP Server simulator is running on http://localhost:${PORT}`);
+    console.log(`HTTP Server simulator is running on http://0.0.0.0:${PORT}`);
 });
