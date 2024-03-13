@@ -7,27 +7,72 @@ const fs = require('fs');
 const app = express();
 const PORT = 8002;
 
+
+const responseFailedXML = `
+        <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+          <soap:Body>
+            <LGIResponse>
+              <Result>
+                <ResultCode>1018</ResultCode>
+                <ResultDesc>Username/Password doesn't match</ResultDesc>
+              </Result>
+            </LGIResponse>
+          </soap:Body>
+        </soap:Envelope>
+      `;
+
+const responseXML = `
+        <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+          <soap:Body>
+            <LGIResponse>
+              <Result>
+                <ResultCode>0</ResultCode>
+                <ResultDesc>Operation is successful</ResultDesc>
+              </Result>
+            </LGIResponse>
+          </soap:Body>
+        </soap:Envelope>
+      `;
+const activeSessions = new Map(); //store session
 app.use(bodyParser.text({ type: 'application/xml' }));
 //app.use(bodyParser.text({ type: 'text/xml' }));
 
 /////// Endpoints //////
 
 //////////////// E.1 LGI ////////////
+function formatDate(timestamp) 
+{
+    const date = new Date(timestamp);
+    
+    // Extract date components
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    // Extract time components
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    // Construct the formatted date string
+    const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+    return formattedDate;
+}
+
+
+// const activeSessions = new Map([
+//     ['key1', { sessionToken: 'token1', timestamp: formatDate(Date.now()) }],
+//     ['192.168.0.1', { sessionToken: 'token2', timestamp: formatDate(Date.now()) }],
+//     ['key3', { sessionToken: 'token3', timestamp: formatDate(Date.now()) }]
+// ]);
 app.post('/', (req, res) => {
 
-
-
-    const clientIP = req.socket.remoteAddress;
-    //const clientIP = req.connection.remoteAddress; ; // Get client's IP address
-
-    // Now you can use clientIP as needed
-    //console.log(`SOAP request received from IP: ${clientIP}`);
-    const forwardedFor = req.headers['x-forwarded-for'];
-    console.log(`Forwarded For : ${forwardedFor}`);
-    const deviceIP = forwardedFor ? forwardedFor.split(',')[0] : req.socket.remoteAddress;
-    console.log(`Device IP address: ${deviceIP}`);
-    xml2js.parseString(req.body, (err, result) => {
-        if (err) {
+   
+    xml2js.parseString(req.body, (err, result) => 
+    {
+        if (err) 
+        {
             console.error('Error parsing SOAP request 1st:', err);
             return res.status(400).send('Error parsing SOAP request');
         }
@@ -42,7 +87,7 @@ app.post('/', (req, res) => {
                 case 'LGI':
                     // Handle LGI operation
                     const lgiData = soapBody['LGI'][0];
-                    handleLGI(lgiData, res);
+                    handleLGI(lgiData, res, req);
                     break;
                 
                 case 'LGO':
@@ -92,166 +137,7 @@ app.post('/', (req, res) => {
 /////// TEST OTHERS THAT CONTAIN SESSIONTOKEN  ////////////////////
 
 app.post('/:sessionToken', (req, res) => {
-    const sessionToken1 = req.params.sessionToken;
-
-    ///// For test purpose /////
-    console.log(sessionToken1)
-    console.log(activeSessions1)
-    ////////////////////////////
-
-    //const redirectURL = `http://localhost:3001/${sessionToken1}`;
-
-    ///sessionData.timestamp = Date.now();
-
-    // console.log(activeSessions1)
-    // res.set({
-    //   'Content-Type': 'application/xml',
-    //   'Location': redirectURL,
-    //   'Connection': 'Keep-Alive'
-    // });
-    // console.log("The timestamp is not expired.");
-    // return res.status(200).json({ sessionToken1 });
-
-    xml2js.parseString(req.body, (err, result) => {
-        if (err) {
-            console.error('Error parsing SOAP request:', err);
-            return res.status(400).send('Error parsing SOAP request');
-        }
-
-
-        // Search for sessionToken and get the associated timestamp
-        var timestamp = searchSessionToken(activeSessions1, sessionToken1);
-
-        // Check if the sessionToken exists and get the timestamp
-        if (timestamp !== undefined && !isTimestampExpired(timestamp, 50000)) {
-
-            console.log("YESYESYESYEYSYESYEYE")
-            console.log("The sessionToken exists within the JSON and the associated timestamp is:", timestamp);
-
-            // Update the timestamp for the session token
-
-            if (updateTimestampForSessionToken(activeSessions1, sessionToken1)) {
-                console.log("Timestamp updated successfully for sessionToken:", sessionToken1);
-            } else {
-                console.log("Session token not found:", sessionToken1);
-            }
-
-            // Output the updated activeSessions object
-            console.log(activeSessions1);
-
-            const soapBody = result['soapenv:Envelope']['soapenv:Body'][0];
-            const keys = Object.keys(soapBody);
-
-            // Check for specific keys in the SOAP body and perform actions accordingly
-            keys.forEach(key => {
-                switch (key) {
-                    case 'LGO':
-                        // Handle LGO operation
-                        const lgoData = soapBody['LGO'][0]; // Extract data for LGO operation
-                        handleLGO(lgoData, res);
-                        break;
-                    case 'LST_SUB':
-                        // Handle LGO operation
-                        const SubData = soapBody['LST_SUB'][0]; // Extract data for LGO operation
-                        // req.body
-                        handleLST(req.body, res);
-                        break;
-                    default:
-                        console.log(`Unknown operation: ${key}`);
-                        console.log('No valid operation key found in the SOAP body');
-                        res.status(400).send('No valid operation key found in the SOAP body');
-                        break;
-                }
-            });
-
-
-
-
-        }
-        else {
-
-            console.log("NONONONONONONONONONOONO")
-            console.log("The sessionToken does not exist within the JSON.");
-            // res.status(404).send('Session token not found');
-            console.log("The timestamp is expired.");
-            // return res.status(401).send('Session has expired Please Log in again');
-            //add this response time of session expired based on a key
-
-
-            const soapBody = result['soapenv:Envelope']['soapenv:Body'][0];
-            const keys = Object.keys(soapBody);
-
-            const redirectURL = `http://169.10.20.100:8002/`;
-
-            // Check for specific keys in the SOAP body and perform actions accordingly
-            keys.forEach(key => {
-                switch (key) {
-                    case 'LGO':
-
-                        res.set({
-                            'Content-Type': 'text/xml',
-                            'Location': redirectURL,
-                            'Connection': 'Keep-Alive'
-                        });
-
-
-                        const responseFailedXML1 = `
-    <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-        <soapenv:Body>
-            <LGOResponse>
-                <Result>
-                    <ResultCode>5004</ResultCode>
-                    <ResultDesc>Session ID invalid or time out</ResultDesc>
-                </Result>
-            </LGOResponse>
-        </soapenv:Body>
-    </soapenv:Envelope>
-`;
-                        res.status(307).send(responseFailedXML1);
-
-                        break;
-                    case 'LST_SUB':
-
-                        res.set({
-                            'Content-Type': 'text/xml',
-                            'Location': redirectURL,
-                            'Connection': 'Keep-Alive'
-                        });
-
-
-                        const responseFailedXML2 = `
-    <soapenv:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-        <soapenv:Body>
-            <LST_SUBResponse>
-                <Result>
-                    <ResultCode>5004</ResultCode>
-                    <ResultDesc>Session ID invalid or time out</ResultDesc>
-                </Result>
-            </LST_SUBResponse>
-        </soapenv:Body>
-    </soapenv:Envelope>
-`;
-                        res.status(307).send(responseFailedXML2);
-
-                        break;
-                    default:
-                        console.log(`Unknown operation: ${key}`);
-                        console.log('No valid operation key found in the SOAP body');
-                        res.status(400).send('No valid operation key found in the SOAP body');
-                        break;
-                }
-            });
-
-
-
-
-
-
-        }
-
-    });
-
-
+    
 });
 
 ////////////////////////
@@ -288,7 +174,8 @@ function isTimestampExpired(timestamp, expirationThreshold) {
 
 
 // Function to search for sessionToken within a given object
-function searchSessionToken(obj, token) {
+function searchSessionToken(obj, token) 
+{
     for (var key in obj) {
         if (obj[key] && typeof obj[key] === 'object') {
             if (obj[key].sessionToken === token) {
@@ -305,7 +192,8 @@ function searchSessionToken(obj, token) {
 }
 
 
-function generateSessionToken() {
+function generateSessionToken() 
+{
     let token = '';
     const characters = '123456789';
     const tokenLength = 7;
@@ -319,66 +207,80 @@ function generateSessionToken() {
 }
 
 
-const activeSessions1 = {}; // Store active sessions
+
 
 // Function to check if the session is expired
-function isSessionExpired(session) {
-    const currentTime = Date.now();
-    return currentTime - session.timestamp > 50000; // 50 seconds expiration
+function isSessionExpired(session) 
+{
+    const currentTime = formatDate(Date.now());
+    return currentTime - session.timestamp > 10000; // 50 seconds expiration
 }
 
 // Function to handle LGI operation
-function handleLGI(data, res) {
+function handleLGI(data, res, req) 
+{
     const { OPNAME, PWD } = data;
     const udmUsername = "udm_username";
     const udmPassword = "udm_password";
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const deviceIP = forwardedFor ? forwardedFor.split(',')[0] : req.socket.remoteAddress;
+    
+    const keyToCheck = (deviceIP === '::1') ? '192.168.0.1' : deviceIP;
 
-    //console.log(OPNAME[0])
-    if (OPNAME[0] === udmUsername && PWD[0] === udmPassword) 
+    if (activeSessions.has(keyToCheck))
     {
-      const timestamp = formatDate(Date.now());
-      const sessionToken = generateSessionToken();
-      activeSessions.set(sessionToken, {udmUsername, timestamp});
-      console.log(activeSessions) 
-
-      const redirectURL = `http://localhost:3001/${sessionToken}`;
-      const responseXML = `
-        <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
-          <soap:Body>
-            <LGIResponse>
-              <Result>
-                <ResultCode>0</ResultCode>
-                <ResultDesc>Operation is successful</ResultDesc>
-              </Result>
-            </LGIResponse>
-          </soap:Body>
-        </soap:Envelope>
-      `;
-
-      res.set({
-        'Content-Type': 'application/xml',
-        'Location': redirectURL,
-        'Connection': 'Keep-Alive'
-      });
-      //res.status(307).contentType('application/xml').send(responseXML);
-      res.status(200).contentType('application/xml').send(responseXML);
-    } 
-    else 
+        const sessionData = activeSessions.get(keyToCheck);
+        if(!isSessionExpired(sessionData))
+        {
+            sessionData.timestamp = formatDate(Date.now());
+            activeSessions.set(keyToCheck, sessionData);
+            const redirectURL = `http://localhost:8002/${sessionData.sessionToken}`;
+            res.set({
+                'Content-Type': 'application/xml',
+                'Location': redirectURL,
+                'Connection': 'Keep-Alive'
+            });
+            return res.status(307).contentType('application/xml').send(responseXML);
+        }
+        else
+        {
+            console.log("remove session expired.")
+            activeSessions.delete(keyToCheck);
+            console.log(activeSessions)
+        }
+    }
+    else
     {
-      console.log("username and pass don't match");
-      const responseFailedXML = `
-        <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
-          <soap:Body>
-            <LGIResponse>
-              <Result>
-                <ResultCode>1018</ResultCode>
-                <ResultDesc>Username/Password doesn't match</ResultDesc>
-              </Result>
-            </LGIResponse>
-          </soap:Body>
-        </soap:Envelope>
-      `;
-      res.status(200).send(responseFailedXML);
+        if (OPNAME[0] === 'udm_username' && PWD[0] === 'udm_password')
+        {
+            const timestamp = formatDate(Date.now());
+            const sessionToken = generateSessionToken();
+            
+            if (deviceIP == '::1')
+            {
+                activeSessions.set('192.168.0.1', {sessionToken, timestamp});
+                
+            }
+            else
+            {
+                activeSessions.set(deviceIP, {sessionToken, timestamp});
+            }
+            
+            
+            console.log(`Device IP: ${deviceIP}, Session ID: ${sessionToken}`);
+            res.set({
+                'Content-Type': 'application/xml',
+                'Connection': 'Keep-Alive'
+              });
+
+            return res.status(200).contentType('application/xml').send(activeSessions);
+              //res.status(200).contentType('application/xml').send(responseXML);
+        }
+        else
+        {
+            return res.status(200).contentType('application/xml').send(responseFailedXML);
+        }
+
     }
 }
 
