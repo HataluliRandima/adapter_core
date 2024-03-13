@@ -661,5 +661,5 @@ function tempLGI(data) {
 const httpServer = http.createServer(app);
 httpServer.keepAliveTimeout = 670000;
 httpServer.listen(PORT, () => {
-    console.log(`HTTP Server simulator is running on http://localhost${PORT}`);
+    console.log(`HTTP Server simulator is running on http://localhost:${PORT}`);
 });
