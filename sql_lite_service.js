@@ -3,17 +3,19 @@ const readline = require('readline');
 const sqlite3 = require('sqlite3').verbose();
 
 // Path to your text file
-const txtFilePath = 'service_account.txt';
+const serviceFilePath = 'service_account.txt';
+const tarrifFilePath = 'service_account.txt';
 
 // Create SQLite database connection
-const db = new sqlite3.Database('mydatabase.db');
+const db = new sqlite3.Database('simulator.db');
 
 // Define table name
 const serviceTableName = 'service_account';
+const tarrifTableName = 'tarrif_plan';
 
 // Create table
 db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS service_account (
+    db.run(`CREATE TABLE IF NOT EXISTS ${serviceTableName} (
         name TEXT,
         partition_key INTEGER,
         service_status INTEGER,
@@ -52,14 +54,14 @@ db.serialize(() => {
 
 // Read text file line by line and insert data into SQLite database
 const rl = readline.createInterface({
-    input: fs.createReadStream('service_account.txt'),
+    input: fs.createReadStream(serviceFilePath),
     crlfDelay: Infinity
 });
 
 rl.on('line', (line) => {
     const data = line.split(','); // Assuming CSV format, modify delimiter as needed
     // Insert data into SQLite table
-    db.run(`INSERT INTO service_account (name, partition_key, service_status, service_type, service_list, service_policy, 
+    db.run(`INSERT INTO ${serviceTableName} (name, partition_key, service_status, service_type, service_list, service_policy, 
         primary_service, sub_services, status_flags, active_policy, primary_balance, secondary_balance, additional_balances,
          liability_rules, meta, history, financial_account_id, account_type_id, user_id, sales_order_line_id, created_by, 
          owned_by, subscriber, policy, account_status, account_policy, "SIM Name", msisdn, iccid, imei_rule, imsi) 
