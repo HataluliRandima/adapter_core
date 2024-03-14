@@ -180,7 +180,7 @@ app.post('/LGI', (req, res) =>
         'Location': redirectURL,
         'Connection': 'Keep-Alive'
       });
-      res.status(307).contentType('application/xml').send(responseXML);
+      
       //res.status(200).contentType('application/xml').send(responseXML);
     } 
     else 

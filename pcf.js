@@ -63,7 +63,15 @@ app.get('/status', (req, res) => {
   
         // Credentials are correct, send a success SOAP response
         const soapResponse = generateSOAPResponse('0');
-        res.send(soapResponse);
+        res.set
+            ({
+                'Content-Type': 'application/xml',
+                'Location': 'http://localhost:8002/234564324',
+                'Connection': 'Keep-Alive'
+            });
+        //res.status(307).contentType('application/xml').send(soapResponse); //redirect to do
+        res.status(200).contentType('application/xml').send(soapResponse);
+        
       }
       else 
       {
@@ -182,7 +190,12 @@ app.get('/status', (req, res) => {
       `;
   }
   
+  app.post('/:sessionId', (req, res) => 
+{
   
+      res.status(200).send("testing pcf");
+ 
+});
   const httpServer = http.createServer(app);
   httpServer.keepAliveTimeout = 67000;
   httpServer.listen(PORT, () => 
