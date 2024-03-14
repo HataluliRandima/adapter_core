@@ -206,14 +206,11 @@ function generateSessionToken()
     return token;
 }
 
-
-
-
 // Function to check if the session is expired
 function isSessionExpired(session) 
 {
     const currentTime = formatDate(Date.now());
-    return currentTime - session.timestamp > 10000; // 50 seconds expiration
+    return currentTime - session.timestamp > 10000; // 10 seconds expiration
 }
 
 // Function to handle LGI operation
@@ -222,59 +219,60 @@ function handleLGI(data, res, req)
     const { OPNAME, PWD } = data;
     const udmUsername = "udm_username";
     const udmPassword = "udm_password";
+    //                     
     const forwardedFor = req.headers['x-forwarded-for'];
-    const deviceIP = forwardedFor ? forwardedFor.split(',')[0] : req.socket.remoteAddress;
-    
+    let deviceIP = forwardedFor ? forwardedFor.split(',')[0] : req.socket.remoteAddress;
+    //
     const keyToCheck = (deviceIP === '::1') ? '192.168.0.1' : deviceIP;
 
     if (activeSessions.has(keyToCheck))
     {
         const sessionData = activeSessions.get(keyToCheck);
         if(!isSessionExpired(sessionData))
-        {
+        { 
             sessionData.timestamp = formatDate(Date.now());
             activeSessions.set(keyToCheck, sessionData);
             const redirectURL = `http://localhost:8002/${sessionData.sessionToken}`;
-            res.set({
+            res.set
+            ({
                 'Content-Type': 'application/xml',
                 'Location': redirectURL,
                 'Connection': 'Keep-Alive'
             });
             return res.status(307).contentType('application/xml').send(responseXML);
         }
-        else
-        {
-            console.log("remove session expired.")
-            activeSessions.delete(keyToCheck);
-            console.log(activeSessions)
-        }
-    }
+    } 
     else
     {
         if (OPNAME[0] === 'udm_username' && PWD[0] === 'udm_password')
         {
             const timestamp = formatDate(Date.now());
             const sessionToken = generateSessionToken();
-            
+            const redirectURL = `http://localhost:8002/${sessionToken}`;
             if (deviceIP == '::1')
             {
                 activeSessions.set('192.168.0.1', {sessionToken, timestamp});
+                deviceIP = '192.168.0.1';
                 
             }
             else
             {
+                
                 activeSessions.set(deviceIP, {sessionToken, timestamp});
             }
             
             
             console.log(`Device IP: ${deviceIP}, Session ID: ${sessionToken}`);
-            res.set({
+            res.set
+            ({
                 'Content-Type': 'application/xml',
+                'Location' : redirectURL,
                 'Connection': 'Keep-Alive'
-              });
+            });
 
-            return res.status(200).contentType('application/xml').send(activeSessions);
-              //res.status(200).contentType('application/xml').send(responseXML);
+            console.log(activeSessions)
+            //return res.status(200).contentType('application/xml').send(responseXML);
+            return res.status(307).contentType('application/xml').send(responseXML);
         }
         else
         {
